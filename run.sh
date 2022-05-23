@@ -1,0 +1,1 @@
+./robots-client -d localhost:20001 -n Szymon -p 20002 -s localhost:20003
