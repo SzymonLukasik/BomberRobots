@@ -13,7 +13,7 @@
 #include <exception>
 #include <iostream>
 
-#include "utils.hpp"
+#include "buffer_utils.hpp"
 
 using boost::asio::ip::udp;
 
@@ -22,7 +22,6 @@ class InBuffer {
 public:
     void read_data(void *dest, size_t n) {
         if (size - read < n) {
-            std::cerr << size << ' ' << read << ' ' << n << '\n';
             throw std::runtime_error("Not enough data.");
         }
 
@@ -52,7 +51,15 @@ private:
         udp::endpoint remote_endpoint;
         size_t n_received = socket.receive_from(boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size), remote_endpoint);
         buff.size += n_received;
-        std::cout << "RECEIVED: " << n_received << " from " << remote_endpoint << '\n' << "SIZE: " << buff.size << '\n';
+        // std::cout << "UDP RECEIVED: " << n_received << '\n';
+        return buff;
+    }
+
+    friend InBuffer &operator>>(tcp::socket &socket, InBuffer &buff) {
+        // size_t n_received = boost::asio::read(socket, boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
+        size_t n_received = socket.read_some(boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
+        buff.size += n_received;
+        // std::cout << "TCP RECEIVED: " << n_received << '\n';
         return buff;
     } 
 };
@@ -116,7 +123,7 @@ InBuffer &operator>>(InBuffer &buff, std::list<T> &list) {
     uint32_t list_size;
     buff >> list_size;
     list = std::list<T>(list_size);
-    for (const T &val : list) {
+    for (T &val : list) {
         buff >> val;
     }
 

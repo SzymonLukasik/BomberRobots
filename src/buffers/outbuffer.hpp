@@ -11,7 +11,10 @@
 
 #include <iostream>
 
-#include "utils.hpp"
+#include "buffer_utils.hpp"
+
+using boost::asio::ip::tcp;
+using boost::asio::ip::udp;
 
 class OutBuffer {
 public:
@@ -36,12 +39,17 @@ private:
     size_t size = 0;
     char data [CAPACITY];
 
-    friend OutBuffer &operator<<(tcp::socket &socket, OutBuffer &buff) {
+    friend void operator<<(tcp::socket &socket, OutBuffer &buff) {
         boost::system::error_code error;
-        socket.send(boost::asio::buffer(buffer.data, buffer.size), boost::asio::basic_stream_socket::message_flags(0));
-        buff.size += n_received;
-        std::cout << "RECEIVED: " << n_received << " from " << remote_endpoint << '\n' << "SIZE: " << buff.size << '\n';
-        return buff;
+        boost::asio::write(socket, boost::asio::buffer(buff.data, buff.size), error);
+        // std::cout << "TCP SENT: " << sent << '\n';
+        buff.size = 0;
+    }
+
+    friend void operator<<(udp::socket &socket, OutBuffer &buff) {
+        socket.send(boost::asio::buffer(buff.data, buff.size));
+        // std::cout << "UDP SENT: " << sent << '\n';
+        buff.size = 0;
     }
 };
 

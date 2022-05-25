@@ -6,6 +6,8 @@
 
 #include "outbuffer.hpp"
 #include "parse_args.hpp"
+#include "common.hpp"
+#include "client.hpp"
 
 #include "test_client_server.hpp"
 #include "test_client_gui.hpp"
@@ -21,12 +23,12 @@ int main(int argc, const char *argv[]) {
     if(!parse_args(argc, argv, gui_endpoint, server_endpoint, port, player_name)) {
         return 1;
     }
-    
-    std::cout << gui_endpoint << '\n' << server_endpoint << '\n' << port << '\n' << player_name << '\n';
 
     // test_server_serialization(server_endpoint);
     // test_gui_serialization(gui_endpoint);
-    test_gui_deserialization(port);
+    // test_gui_deserialization(port);
+    for (;;) {
+        Client client(player_name, server_endpoint, gui_endpoint, port);
+        client.run();
+    }
 }
-
-

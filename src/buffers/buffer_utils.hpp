@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __BUFFER_UTILS_H__
+#define __BUFFER_UTILS_H__
 
 #include <concepts>
 
@@ -12,4 +12,4 @@ concept supported_integral = std::integral<T> && sizeof(T) <= 4;
 //     explicit SerializationError(const char* what_arg);
 // };
 
-#endif // __UTILS_H__
+#endif // __BUFFER_UTILS_H__

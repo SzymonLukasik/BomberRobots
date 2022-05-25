@@ -1,1 +1,1 @@
-./robots-client -d localhost:20001 -n Szymon -p 20002 -s localhost:20003
+./robots-client -d localhost:20003 -n Szymon -p 20002 -s students.mimuw.edu.pl:20001

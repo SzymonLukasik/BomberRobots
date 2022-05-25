@@ -1,28 +1,34 @@
+#ifndef __UTILS_H__
+#define __UTILS_H__
+
 #include <variant>
 #include <type_traits>
 #include <iostream>
 
-#include "../messages/gui.hpp"
-#include "../messages/server.hpp"
-
-template <class T, class... Ts>
-std::ostream &operator<<(std::ostream &stream, const std::variant<T, Ts...> &variant) {
-        using variant_t = std::variant<T, Ts...>;
-
-        if (std::is_same_v<variant_t, ClientMessage>) {
-            stream << "ClientMessage";
-        } else if (std::is_same_v<variant_t, ServerMessage>) {
-            stream << "ServerMessage";
-        } else if (std::is_same_v<variant_t, DrawMessage>) {
-            stream << "DrawMessage";
-        } else if (std::is_same_v<variant_t, InputMessage>) {
-            stream << "InputMessage";
-        } else {
-            stream << "UnknownVariant";
-        }
-
-        stream << " { ";
-        std::visit([&stream](auto const &value){ stream << value; }, variant);
-        stream << " } ";
-        return stream;
+template <typename U, typename V>
+std::ostream &operator<<(std::ostream &stream, const std::pair<U, V> &pair) {
+    stream << pair.first << ": " << pair.second;
+    return stream;
 }
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, const std::list<T> &list) {
+    stream << " [ ";
+    for (const T &val : list) {
+        stream << val << ", ";
+    }
+    stream << " ] ";
+    return stream;
+}
+
+template <typename U, typename V>
+std::ostream &operator<<(std::ostream &stream, const std::map<U, V> &map) {
+    stream << " { ";
+    for (const std::pair<U, V> &key_val : map) {
+        stream << key_val << ", ";
+    }
+    stream << " } ";
+    return stream;
+}
+
+#endif // __UTILS_H__
