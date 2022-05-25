@@ -8,73 +8,29 @@
 #include "../game.hpp"
 #include "../buffers/outbuffer.hpp"
 #include "../messages/server.hpp"
+#include "../variant_utils.hpp"
 
-class Lobby {
-public:
-    Lobby(std::string server_name, players_count_t players_count,
-          Position::coord_t size_x, Position::coord_t size_y, game_length_t game_length,
-          Bomb::explosion_rad_t explosion_radius, Bomb::timer_t bomb_timer,
-          std::map<Player::id_t, Player> players)
-    : server_name(server_name), players_count(players_count), size_x(size_x), size_y(size_y),
-      game_length(game_length), explosion_radius(explosion_radius), bomb_timer(bomb_timer), players(players) {};
-
-    Lobby(Hello &hello)
-    : server_name(hello.server_name), players_count(hello.players_count), size_x(hello.size_x), size_y(hello.size_y),
-      game_length(hello.game_length), explosion_radius(hello.explosion_radius), bomb_timer(hello.bomb_timer) {};
-
-    Lobby() = default;
-
-    void add_player(AcceptedPlayer &accepted_player) {
-        players[accepted_player.id] = accepted_player.player;
-    }
-
-private:
-    std::string server_name;
-    players_count_t players_count;
-    Position::coord_t size_x;
-    Position::coord_t size_y;
-    game_length_t game_length;
-    Bomb::explosion_rad_t explosion_radius;
-    Bomb::timer_t bomb_timer;
-    std::map<Player::id_t, Player> players;
-
-    friend OutBuffer &operator<<(OutBuffer &buff, const Lobby &lobby) {
-        buff << lobby.server_name << lobby.players_count
-             << lobby.size_x << lobby.size_y << lobby.game_length
-             << lobby.explosion_radius << lobby.bomb_timer << lobby.players;
-        return buff;
-    }
-
-    friend class Game;
-};
-
-
-
-// helper type for the visitor #4
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-// explicit deduction guide (not needed as of C++20)
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+class Lobby;
 
 class Game {
 public:
-    Game(std::string server_name, Position::coord_t size_x, Position::coord_t size_y,
-         game_length_t game_length, game_length_t turn, std::map<Player::id_t, Player> players,
+    Game(Hello game_settings, game_length_t turn, std::map<Player::id_t, Player> players,
          std::map<Player::id_t, Position> player_positions, std::list<Position> blocks, 
          std::list<Bomb> bombs, std::list<Position> explosions, std::map<Player::id_t, score_t> scores)
-    : server_name(server_name), size_x(size_x), size_y(size_y), game_length(game_length), turn(turn),
-      players(players), player_positions(player_positions), blocks(blocks), bombs(bombs),
-      explosions(explosions), scores(scores) {}
+    : game_settings(game_settings), turn(turn), players(players), player_positions(player_positions), 
+      blocks(blocks), bombs(bombs), explosions(explosions), scores(scores) {}
 
-    Game(Lobby lobby, GameStarted game_started)
-    : server_name(lobby.server_name), size_x(lobby.size_x), size_y(lobby.size_y), game_length(lobby.game_length),
-      turn(0), players(game_started.players), bomb_timer(lobby.bomb_timer) {
-          for (const std::pair<Player::id_t, Player> &key_val : game_started.players) {
+    Game(Hello &&game_settings, GameStarted &&game_started)
+    : game_settings(std::move(game_settings)), turn(0), players(std::move(game_started.players)) {
+          for (const std::pair<Player::id_t, Player> &key_val : players) {
               scores[key_val.first] = 0;
           }
       }
 
-    bool ended() {
-        return (turn == game_length);
+    Lobby end_game();
+
+    bool is_ended() {
+        return (turn == game_settings.get_game_length());
     }
 
     void process_turn(Turn &turn) {
@@ -82,8 +38,9 @@ public:
             throw std::runtime_error("Turn out of order.");
         }
 
+        explosions.clear();
         for (const Event &event : turn.get_events()) {
-            std::visit(overloaded {
+            std::visit(visitors {
                 [this](const BombPlaced &bomb_placed) { this->add_bomb(bomb_placed); },
                 [this](const BombExploded &bomb_exploded) { this->process_bomb_explosion(bomb_exploded);  },
                 [this](const PlayerMoved &player_moved) { this->move_player(player_moved); },
@@ -99,10 +56,7 @@ public:
     }
 
 private:
-    std::string server_name;
-    Position::coord_t size_x;
-    Position::coord_t size_y;
-    game_length_t game_length;
+    Hello game_settings;
     game_length_t turn;
     std::map<Player::id_t, Player> players;
     std::map<Player::id_t, Position> player_positions;
@@ -111,18 +65,39 @@ private:
     std::list<Position> explosions;
     std::map<Player::id_t, score_t> scores;
 
-    
-    Bomb::timer_t bomb_timer;
     std::map<Bomb::id_t, Bomb> bomb_map;
     std::set<Position> block_positions;
 
     void add_bomb(const BombPlaced &bomb_placed) {
-        bomb_map[bomb_placed.get_id()] = Bomb(bomb_placed.get_position(), bomb_timer);
+        bomb_map[bomb_placed.get_id()] = Bomb(bomb_placed.get_position(), game_settings.get_bomb_timer());
+    }
+
+    bool position_in_map(const Position &position) {
+        return ((position.get_x() < game_settings.get_size_x())
+            &&  (position.get_y() < game_settings.get_size_y()));
+    }
+
+    void mark_explosions_in_direction(Position position, const Direction &direction) {
+        position = position.shift(direction);
+        if (position_in_map(position)) {
+            explosions.push_back(position);
+            if (block_positions.find(position) == block_positions.end()) {
+                mark_explosions_in_direction(position, direction);
+            }
+        }
     }
 
     void process_bomb_explosion(const BombExploded &bomb_exploded) {
         auto bomb_map_it = bomb_map.find(bomb_exploded.get_id());
-        explosions.push_back((bomb_map_it->second).get_position());
+
+        Position explosion_position = (bomb_map_it->second).get_position();
+        explosions.push_back(explosion_position);
+        if (block_positions.find(explosion_position) == block_positions.end()) {
+            for (const Direction &direction : {Direction::Up, Direction::Right, Direction::Down, Direction::Left}) {
+                mark_explosions_in_direction(explosion_position, direction);
+            }
+        }
+        
         bomb_map.erase(bomb_map_it);
         for (const Player::id_t &player_id : bomb_exploded.get_robots_destroyed()) {
             player_positions.erase(player_positions.find(player_id));
@@ -143,25 +118,71 @@ private:
     }
 
     void build_state() {
-        blocks = std::list<Position>();
+        blocks.clear();
         for (const Position &pos : block_positions) {
             blocks.push_back(pos);
         }
 
-        bombs = std::list<Bomb>();
-        for (const std::pair<Bomb::id_t, Bomb> &key_val : bomb_map) {
+        bombs.clear();
+        for (std::pair<const Bomb::id_t, Bomb> &key_val : bomb_map) {
+            key_val.second.decrease_timer();
             bombs.push_back(key_val.second);
         }
     }
 
-
     friend OutBuffer &operator<<(OutBuffer &buff, const Game &game) {
-        buff << game.server_name << game.size_x << game.size_y << game.game_length
+        buff << game.game_settings.get_server_name() << game.game_settings.get_size_x() 
+             << game.game_settings.get_size_y() << game.game_settings.get_game_length()
              << game.turn << game.players << game.player_positions << game.blocks 
              << game.bombs << game.explosions << game.scores;
         return buff;
     }
+
+    friend std::ostream &operator<<(std::ostream &stream, const Game &game) {
+        stream << " Game { game_settings " << game.game_settings << ", turn: " << game.turn
+               << ", players: " << game.players << ", player_positions: " << game.player_positions
+               << ", blocks: " << game.blocks << ", bombs: " << game.bombs << ", explosions: " << game.explosions
+               << ", scores: " << game.scores;
+        return stream; 
+    }
 };
+
+class Lobby {
+public:
+    Lobby(Hello &game_settings) : game_settings(std::move(game_settings)) {};
+    Lobby(Hello &&game_settings) : game_settings(std::move(game_settings)) {};
+    Lobby() = default;
+
+    Game start_game(GameStarted &&game_started) {
+        return Game(std::move(game_settings), std::move(game_started));
+    }
+
+    void add_player(AcceptedPlayer &accepted_player) {
+        players[accepted_player.id] = accepted_player.player;
+    }
+
+    void add_player(AcceptedPlayer &&accepted_player) {
+        players[accepted_player.id] = accepted_player.player;
+    }
+
+private:
+    Hello game_settings;
+    std::map<Player::id_t, Player> players;
+
+    friend OutBuffer &operator<<(OutBuffer &buff, const Lobby &lobby) {
+        buff << lobby.game_settings << lobby.players;
+        return buff;
+    }
+
+    friend std::ostream &operator<<(std::ostream &stream, const Lobby &lobby) {
+        stream << " Lobby { game_settings " << lobby.game_settings << ", players: " << lobby.players;
+        return stream; 
+    }
+};
+
+Lobby Game::end_game() {
+    return Lobby(std::move(this->game_settings));
+}
 
 using DrawMessage = std::variant<
     Lobby,

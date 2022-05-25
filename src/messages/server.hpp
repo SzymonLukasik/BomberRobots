@@ -41,6 +41,15 @@ public:
     : server_name(server_name), players_count(players_count), size_x(size_x),
       size_y(size_y),game_length(game_length), explosion_radius(explosion_radius),
       bomb_timer(bomb_timer) {}
+
+    const std::string &get_server_name() const { return server_name; }
+    players_count_t get_players_count() const { return players_count; }
+    Position::coord_t get_size_x() const { return size_x; }
+    Position::coord_t get_size_y() const { return size_y; }
+    game_length_t get_game_length() const { return game_length; }
+    Bomb::explosion_rad_t get_explosion_radius() const { return explosion_radius; }
+    Bomb::timer_t get_bomb_timer() const { return bomb_timer; }
+
 private:
     std::string server_name;
     players_count_t players_count;
@@ -53,6 +62,13 @@ private:
     friend InBuffer &operator>>(InBuffer &buff, Hello &hello) {
         buff >> hello.server_name >> hello.players_count >> hello.size_x >> hello.size_y
              >> hello.game_length >> hello.explosion_radius >> hello.bomb_timer;
+        return buff;
+    }
+
+    friend OutBuffer &operator<<(OutBuffer &buff, const Hello &hello) {
+        buff << hello.server_name << hello.players_count
+             << hello.size_x << hello.size_y << hello.game_length
+             << hello.explosion_radius << hello.bomb_timer;
         return buff;
     }
 

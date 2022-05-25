@@ -14,13 +14,25 @@
 #include <iostream>
 
 #include "buffer_utils.hpp"
+#include "../variant_utils.hpp"
 
 using boost::asio::ip::udp;
-
+using boost::asio::ip::tcp;
 
 class InBuffer {
 public:
+    InBuffer(socket_t &socket) : socket(socket) {}
+
+    void read_from_socket(size_t n) {
+        std::visit(visitors {
+            [this, n](tcp::socket &socket){ this->read_from_tcp_socket(socket, n); },
+            [this](udp::socket &socket){ this->read_from_udp_socket(socket); }
+        }, socket);
+    }
+
     void read_data(void *dest, size_t n) {
+        read_from_socket(n);
+
         if (size - read < n) {
             throw std::runtime_error("Not enough data.");
         }
@@ -41,28 +53,34 @@ public:
         return size;
     }
 
+    size_t get_left() {
+        return size - read;
+    }
+
 private:
+    socket_t &socket;
     static const size_t CAPACITY = 65536;
     size_t size = 0;
     size_t read = 0;
     char data [CAPACITY];
 
-    friend InBuffer &operator>>(udp::socket &socket, InBuffer &buff) {
-        udp::endpoint remote_endpoint;
-        size_t n_received = socket.receive_from(boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size), remote_endpoint);
-        buff.size += n_received;
-        // std::cout << "UDP RECEIVED: " << n_received << '\n';
-        return buff;
+    void read_from_tcp_socket(tcp::socket &socket, size_t n) {
+        // size_t n_received = boost::asio::read(socket, boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
+        size_t n_received = boost::asio::read(socket, boost::asio::buffer(data + size, n));
+        size += n_received;
+        // std::cout << "TCP RECEIVED: " << n_received << '\n';
     }
 
-    friend InBuffer &operator>>(tcp::socket &socket, InBuffer &buff) {
-        // size_t n_received = boost::asio::read(socket, boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
-        size_t n_received = socket.read_some(boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
-        buff.size += n_received;
-        // std::cout << "TCP RECEIVED: " << n_received << '\n';
-        return buff;
-    } 
+    void read_from_udp_socket(udp::socket &socket) {
+        if (size - read == 0) {
+            udp::endpoint remote_endpoint;
+            size_t n_received = socket.receive_from(boost::asio::buffer(data + size, InBuffer::CAPACITY - size), remote_endpoint);
+            size += n_received;
+            std::cout << "UDP RECEIVED: " << n_received << '\n';
+        }
+    }
 };
+
 
 template <supported_integral T>
 T network_to_host(const T &val) {

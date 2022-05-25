@@ -27,8 +27,6 @@ int main(int argc, const char *argv[]) {
     // test_server_serialization(server_endpoint);
     // test_gui_serialization(gui_endpoint);
     // test_gui_deserialization(port);
-    for (;;) {
-        Client client(player_name, server_endpoint, gui_endpoint, port);
-        client.run();
-    }
+    Client client(player_name, server_endpoint, gui_endpoint, port);
+    client.run();
 }

@@ -2,7 +2,7 @@
 #include "../messages/gui.hpp"
 #include "../parse_args.hpp"
 #include "../game.hpp"
-#include "../buffers/outbuffer.hpp"
+#include "../buffers/buffer.hpp"
 
 using boost::asio::ip::udp;
 
@@ -17,14 +17,18 @@ void test_gui_serialization(EndPoint &gui_endpoint) {
         socket.connect(endpoint);
 
 
-        OutBuffer buffer;
-        buffer 
-            << DrawMessage(Lobby("server_name", 13, 5, 10, 100, 3, 40, {
-                {0, Player("Szymon", "[::1]:33840")},
-                {1, Player("Kuba", "[::1]:33840")},
-                {2, Player("Marysia", "[::1]:33840")}
-            }))
-            << DrawMessage(Game("server_name", 3, 5, 200, 40, {
+        Buffer buffer(std::move(socket));
+        Hello game_settings = Hello("server_name", 13, 5, 10, 100, 3, 40);
+        Lobby lobby = Lobby(game_settings);
+        lobby.add_player(AcceptedPlayer(0, Player("Szymon", "[::1]:33840")));
+        lobby.add_player(AcceptedPlayer(1, Player("Kuba", "[::1]:33840")));
+        lobby.add_player(AcceptedPlayer(2, Player("Marysia", "[::1]:33840")));
+
+        DrawMessage message = lobby;
+        buffer << message;
+        buffer.send();
+
+        message = Game(game_settings, 0, {
                 {0, Player("Szymon", "[::1]:33840")},
                 {1, Player("Kuba", "[::1]:33840")},
                 {2, Player("Marysia", "[::1]:33840")}
@@ -48,10 +52,9 @@ void test_gui_serialization(EndPoint &gui_endpoint) {
                 {0, 10},
                 {1, 20},
                 {2, 30}
-            }));
-        
-        socket << buffer;
-
+            });
+        buffer << message;
+        buffer.send();
     } catch (std::exception& e) {
     std::cerr << e.what() << std::endl;
     }

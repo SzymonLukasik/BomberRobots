@@ -1,7 +1,7 @@
 #include <boost/asio.hpp>
 #include "../messages/server.hpp"
 #include "../parse_args.hpp"
-#include "../buffers/outbuffer.hpp"
+#include "../buffers/buffer.hpp"
 
 using boost::asio::ip::tcp;
 
@@ -14,13 +14,13 @@ void test_server_serialization(EndPoint &server_endpoint) {
         std::cout << endpoints.begin()->endpoint() << '\n';
         boost::asio::connect(socket, endpoints);
 
-        OutBuffer buffer;
+        Buffer buffer(std::move(socket));
         buffer 
             << ClientMessage(Join("Szymon"))
             << ClientMessage(PlaceBomb())
             << ClientMessage(PlaceBlock())
             << ClientMessage(Move(Direction::Right));
-        socket << buffer;
+        buffer.send();
     } catch (std::exception& e) {
     std::cerr << e.what() << std::endl;
     }

@@ -48,11 +48,27 @@ public:
     using coord_t = uint16_t;
     Position(coord_t x, coord_t y) : x(x), y(y) {}
 
+    coord_t get_x() const { return x; }
+    coord_t get_y() const { return y; }
+
     bool operator<(const Position &rhs) const {
         if (x < rhs.x || (x == rhs.x && y < rhs.y)) {
             return true;
         }
         return false;
+    }
+
+    Position shift(const Direction &direction) {
+        switch (direction) {
+            case Direction::Up:
+                return Position(x, y + 1);
+            case Direction::Right:
+                return Position(x + 1, y);
+            case Direction::Down:
+                return Position(x, y - 1);
+            default: // Direction::Left
+                return Position(x - 1, y);
+        }
     }
 
 private:
@@ -82,6 +98,13 @@ public:
     using explosion_rad_t = uint16_t;
     Bomb() = default;
     Bomb(Position position, timer_t timer) : position(position), timer(timer) {}
+
+    void decrease_timer() {
+        if (timer == 0) {
+            throw std::runtime_error("Decreasing zero timer.");
+        }
+        timer--;
+    }
 
     Position get_position() const {
         return position;
@@ -242,7 +265,7 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const BlockPlaced &player_placed) {
-        stream << " PlayerPlaced { position: " << player_placed.position << " } ";
+        stream << " BlockPlaced { position: " << player_placed.position << " } ";
         return stream;
     }
 };

@@ -12,12 +12,22 @@
 #include <iostream>
 
 #include "buffer_utils.hpp"
+#include "../variant_utils.hpp"
 
 using boost::asio::ip::tcp;
 using boost::asio::ip::udp;
 
 class OutBuffer {
 public:
+    OutBuffer(socket_t &socket) : socket(socket) {}
+
+    void send() {
+        std::visit(visitors {
+            [this](tcp::socket &socket){ this->send_to_tcp_socket(socket); },
+            [this](udp::socket &socket){ this->send_to_udp_socket(socket); },
+        }, socket);
+    }
+
     void write_data(const void *src, size_t n) {
         if (size + n > CAPACITY) {
             throw std::runtime_error("Not enough capacity.");
@@ -25,6 +35,10 @@ public:
 
         memcpy(data + size, src, n);
         size += n;
+    }
+
+    void get_endpoint(udp::endpoint udp_endpoint) {
+        this->udp_endpoint = udp_endpoint;
     }
 
     const char *get_data() {
@@ -35,23 +49,26 @@ public:
         return size;
     }
 private:
+    udp::endpoint udp_endpoint;
+    socket_t &socket;
     static const size_t CAPACITY = 65536;
     size_t size = 0;
     char data [CAPACITY];
 
-    friend void operator<<(tcp::socket &socket, OutBuffer &buff) {
+    void send_to_tcp_socket(tcp::socket &socket) {
         boost::system::error_code error;
-        boost::asio::write(socket, boost::asio::buffer(buff.data, buff.size), error);
+        boost::asio::write(socket, boost::asio::buffer(data, size), error);
         // std::cout << "TCP SENT: " << sent << '\n';
-        buff.size = 0;
+        size = 0;
     }
 
-    friend void operator<<(udp::socket &socket, OutBuffer &buff) {
-        socket.send(boost::asio::buffer(buff.data, buff.size));
+    void send_to_udp_socket(udp::socket &socket) {
+        socket.send_to(boost::asio::buffer(data, size), udp_endpoint);
         // std::cout << "UDP SENT: " << sent << '\n';
-        buff.size = 0;
+        size = 0;
     }
 };
+
 
 template <supported_integral T>
 T host_to_network(const T &val) {
