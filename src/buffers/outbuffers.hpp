@@ -1,5 +1,5 @@
-#ifndef __OUTBUFFER_H__
-#define __OUTBUFFER_H__
+#ifndef __OUTBUFFERS_H__
+#define __OUTBUFFERS_H__
 
 #include <boost/asio/detail/socket_ops.hpp>
 #include <string>
@@ -9,24 +9,18 @@
 #include <list>
 #include <set>
 #include <map>
-
 #include <iostream>
 
-#include "buffer_utils.hpp"
-#include "../common.hpp"
+#include "buffers_utils.hpp"
+#include "../utils.hpp"
 
 using boost::asio::ip::tcp;
 using boost::asio::ip::udp;
 
 class OutBuffer {
 public:
-    OutBuffer(socket_t &socket) : socket(socket) {}
-
     void send() {
-        std::visit(visitors {
-            [this](tcp::socket &socket){ this->send_to_tcp_socket(socket); },
-            [this](udp::socket &socket){ this->send_to_udp_socket(socket); },
-        }, socket);
+        send_to_socket();
     }
 
     void write_data(const void *src, size_t n) {
@@ -38,34 +32,43 @@ public:
         size += n;
     }
 
-    void get_endpoint(udp::endpoint udp_endpoint) {
-        this->udp_endpoint = udp_endpoint;
-    }
+    const char *get_data() { return data; }
 
-    const char *get_data() {
-        return data;
-    }
+    size_t get_size() { return size; }
 
-    size_t get_size() {
-        return size;
-    }
-private:
-    udp::endpoint udp_endpoint;
-    socket_t &socket;
-    static const size_t CAPACITY = 65536;
+protected:
     size_t size = 0;
+    static const size_t CAPACITY = 65536;
     char data [CAPACITY];
 
-    void send_to_tcp_socket(tcp::socket &socket) {
-        boost::system::error_code error;
-        boost::asio::write(socket, boost::asio::buffer(data, size), error);
-        // std::cout << "TCP SENT: " << sent << '\n';
+private:
+    virtual void send_to_socket() = 0;
+};
+
+class UDPOutBuffer : public OutBuffer {
+public:
+    UDPOutBuffer(udp::socket &socket, udp::endpoint endpoint) : socket(socket), endpoint(endpoint) {}
+
+private:
+    udp::socket &socket;
+    udp::endpoint endpoint;
+
+    virtual void send_to_socket() {
+        socket.send_to(boost::asio::buffer(data, size), endpoint);
         size = 0;
     }
+};
 
-    void send_to_udp_socket(udp::socket &socket) {
-        socket.send_to(boost::asio::buffer(data, size), udp_endpoint);
-        // std::cout << "UDP SENT: " << sent << '\n';
+class TCPOutBuffer : public OutBuffer {
+public:
+    TCPOutBuffer(tcp::socket &socket) : socket(socket) {}
+
+private:
+    tcp::socket &socket;
+    
+    virtual void send_to_socket() {
+        boost::system::error_code error;
+        boost::asio::write(socket, boost::asio::buffer(data, size), error);
         size = 0;
     }
 };
@@ -153,4 +156,4 @@ OutBuffer &operator<<(OutBuffer &buff, const std::map<U, V> &map) {
     return buff;
 }
 
-#endif // __OUTBUFFER_H__
+#endif // __OUTBUFFERS_H__

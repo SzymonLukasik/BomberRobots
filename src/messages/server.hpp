@@ -6,11 +6,11 @@
 #include <list>
 #include <variant>
 
-#include "../buffers/outbuffer.hpp"
-#include "../common.hpp"
 #include "gui.hpp"
-#include "../game.hpp"
+#include "event.hpp"
 #include "action.hpp"
+#include "../buffers/outbuffers.hpp"
+#include "../utils.hpp"
 
 class Join {
 public:
@@ -33,6 +33,13 @@ using ClientMessage = std::variant<
     PlaceBlock,
     Move
 >; 
+
+std::ostream &operator<<(std::ostream &stream, const ClientMessage &client_message) {
+    stream << "ClientMessage { ";
+    std::visit([&stream](auto const &value){ stream << value; }, client_message);
+    stream << " }";
+    return stream;
+}
 
 class Hello {
 public:
@@ -213,5 +220,12 @@ using ServerMessage = std::variant<
     Turn,
     GameEnded
 >;
+
+std::ostream &operator<<(std::ostream &stream, const ServerMessage &server_message) {
+    stream << "ServerMessage { ";
+    std::visit([&stream](auto const &value){ stream << value; }, server_message);
+    stream << " }";
+    return stream;
+}
 
 #endif // __SERVER_CLIENT_H__

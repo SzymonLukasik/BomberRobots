@@ -4,14 +4,17 @@
 #include <boost/program_options.hpp>
 #include <iostream>
 
-#include "common.hpp"
+#include "utils.hpp"
 
 namespace program_options = boost::program_options;
 
+// Represents the endpoint.
 class EndPoint {
 public:
     EndPoint() = default;
 
+    /* Constructs an endpoint from string of form (ip):(port),
+     * where ip is of form ip4, ip6 or [ip6]. */  
     EndPoint(std::string str) {
         size_t pos = str.find_last_of(":");
         ip = str.substr(0, pos);
@@ -22,6 +25,7 @@ public:
             ip = ip.substr(0, ip.size() - 1);
         }
     }
+
     std::string get_ip() { return ip; }
 
     std::string get_port() { return port; }
@@ -36,6 +40,7 @@ private:
     }
 };
 
+// Parses robots-client args
 bool parse_args(int argc, const char *argv[],
                 EndPoint &gui_endpoint, EndPoint &server_endpoint,
                 uint16_t &port, std::string &player_name) {

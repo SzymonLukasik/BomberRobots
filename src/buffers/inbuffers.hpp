@@ -1,5 +1,5 @@
-#ifndef __INBUFFER_H__
-#define __INBUFFER_H__
+#ifndef __INBUFFERS_H__
+#define __INBUFFERS_H__
 
 #include <boost/asio.hpp>
 #include <boost/asio/detail/socket_ops.hpp>
@@ -9,27 +9,17 @@
 #include <limits>
 #include <list>
 #include <map>
-
 #include <exception>
 #include <iostream>
 
-#include "buffer_utils.hpp"
-#include "../common.hpp"
+#include "buffers_utils.hpp"
+#include "../utils.hpp"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 
 class InBuffer {
 public:
-    InBuffer(socket_t &socket) : socket(socket) {}
-
-    void read_from_socket(size_t n) {
-        std::visit(visitors {
-            [this, n](tcp::socket &socket){ this->read_from_tcp_socket(socket, n); },
-            [this](udp::socket &socket){ this->read_from_udp_socket(socket); }
-        }, socket);
-    }
-
     void read_data(void *dest, size_t n) {
         read_from_socket(n);
 
@@ -45,42 +35,48 @@ public:
         }
     }
 
-    char *get_data() {
-        return data;
-    }
+    char *get_data() { return data; }
 
-    size_t get_size() {
-        return size;
-    }
+    size_t get_size() { return size; }
 
-    size_t get_left() {
-        return size - read;
-    }
+    size_t get_left() { return size - read; }
 
-    socket_t &get_socket() {
-        return socket;
-    }
-
-private:
-    socket_t &socket;
-    static const size_t CAPACITY = 65536;
+protected:
     size_t size = 0;
     size_t read = 0;
+    static const size_t CAPACITY = 65536;
     char data [CAPACITY];
 
-    void read_from_tcp_socket(tcp::socket &socket, size_t n) {
-        // size_t n_received = boost::asio::read(socket, boost::asio::buffer(buff.data + buff.size, InBuffer::CAPACITY - buff.size));
-        size_t n_received = boost::asio::read(socket, boost::asio::buffer(data + size, n));
-        size += n_received;
-        // std::cout << "TCP RECEIVED: " << n_received << '\n';
-    }
+private:
+    virtual void read_from_socket(size_t) = 0;
+};
 
-    void read_from_udp_socket(udp::socket &socket) {
+class UDPInBuffer : public InBuffer {
+public:
+    UDPInBuffer(udp::socket &socket, udp::endpoint &endpoint) : socket(socket), endpoint(endpoint) {}
+
+private:
+    udp::socket &socket;
+    udp::endpoint &endpoint;
+
+    virtual void read_from_socket(size_t) {
         if (size - read == 0) {
-            udp::endpoint remote_endpoint;
-            size_t n_received = socket.receive_from(boost::asio::buffer(data + size, InBuffer::CAPACITY - size), remote_endpoint);
+            size_t n_received = socket.receive(boost::asio::buffer(data + size, InBuffer::CAPACITY - size));
             size += n_received;
         }
+    }
+};
+
+class TCPInBuffer : public InBuffer {
+public:
+    TCPInBuffer(tcp::socket &socket) : socket(socket) {}
+
+private:
+    tcp::socket &socket;
+
+    virtual void read_from_socket(size_t n) {
+        size_t n_received = boost::asio::read(socket, boost::asio::buffer(data + size, n));
+        size += n_received;
     }
 };
 
@@ -129,13 +125,16 @@ InBuffer &operator>>(InBuffer &buff, std::variant<Ts...> &variant) {
         buff >> index;
         variant = variant_from_index<variant_t>(index);
         std::visit([&buff](auto &val){ buff >> val; }, variant);
-        
-        if (std::holds_alternative<udp::socket>(buff.get_socket())
-            && buff.get_left() > 0) {
-            throw std::runtime_error("Trailing data.");
-        }
-
         return buff;
+}
+
+template <class... Ts>
+UDPInBuffer &operator>>(UDPInBuffer &buff, std::variant<Ts...> &variant) {
+    (InBuffer &) buff >> variant;
+    if (buff.get_left() > 0) {
+        throw std::runtime_error("Trailing data.");
+    }
+    return buff;
 }
 
 template <typename U, typename V>
@@ -171,4 +170,4 @@ InBuffer &operator>>(InBuffer &buff, std::map<U, V> &map) {
     return buff;
 }
 
-#endif // __InBuffer_H__
+#endif // __INBUFFERS_H__

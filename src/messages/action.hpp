@@ -2,8 +2,8 @@
 #define __ACTION_H__
 
 
-#include "../buffers/outbuffer.hpp"
-#include "../buffers/inbuffer.hpp"
+#include "../buffers/outbuffers.hpp"
+#include "../buffers/inbuffers.hpp"
 #include <iostream>
 
 class PlaceBomb {

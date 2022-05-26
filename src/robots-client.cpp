@@ -1,12 +1,7 @@
-#include <boost/asio.hpp>
-
-#include <stdio.h>
 #include <string>
-#include <exception>
 
-#include "outbuffer.hpp"
 #include "parse_args.hpp"
-#include "common.hpp"
+#include "utils.hpp"
 #include "client.hpp"
 
 using boost::asio::ip::tcp;
