@@ -73,7 +73,9 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, [[maybe_unused]] const Hello &hello) {
-        stream << " Hello {  }";
+        stream << " Hello { server_name: " << hello.server_name << ", players_count: " << hello.players_count
+               << ", size_x: " << hello.size_x << ", size_y: " << hello.size_y << ", game_length: " << hello.game_length
+               << ", explosion_radius: " << hello.explosion_radius << ", bomb_timer: " << hello.bomb_timer << " } ";
         return stream;
     }
 

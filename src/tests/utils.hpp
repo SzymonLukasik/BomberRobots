@@ -21,9 +21,21 @@ std::ostream &operator<<(std::ostream &stream, const std::list<T> &list) {
     return stream;
 }
 
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, const std::set<T> &set) {
+    stream << " [ ";
+    for (const T &val : set) {
+        stream << val << ", ";
+    }
+    stream << " ] ";
+    return stream;
+}
+
+
 template <typename U, typename V>
 std::ostream &operator<<(std::ostream &stream, const std::map<U, V> &map) {
-    stream << " { ";
+    stream << " { (map_size = " << map.size() << ") ";
     for (const std::pair<U, V> &key_val : map) {
         stream << key_val << ", ";
     }

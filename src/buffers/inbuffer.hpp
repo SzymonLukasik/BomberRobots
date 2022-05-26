@@ -57,6 +57,10 @@ public:
         return size - read;
     }
 
+    socket_t &get_socket() {
+        return socket;
+    }
+
 private:
     socket_t &socket;
     static const size_t CAPACITY = 65536;
@@ -127,6 +131,11 @@ InBuffer &operator>>(InBuffer &buff, std::variant<Ts...> &variant) {
         variant = variant_from_index<variant_t>(index);
         std::visit([&buff](auto &val){ buff >> val; }, variant);
         
+        if (std::holds_alternative<udp::socket>(buff.get_socket())
+            && buff.get_left() > 0) {
+            throw std::runtime_error("Trailing data.");
+        }
+
         return buff;
 }
 

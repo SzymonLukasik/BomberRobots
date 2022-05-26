@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 #include "action.hpp"
 #include "../game.hpp"
@@ -16,7 +17,7 @@ class Game {
 public:
     Game(Hello game_settings, game_length_t turn, std::map<Player::id_t, Player> players,
          std::map<Player::id_t, Position> player_positions, std::list<Position> blocks, 
-         std::list<Bomb> bombs, std::list<Position> explosions, std::map<Player::id_t, score_t> scores)
+         std::list<Bomb> bombs, std::set<Position> explosions, std::map<Player::id_t, score_t> scores)
     : game_settings(game_settings), turn(turn), players(players), player_positions(player_positions), 
       blocks(blocks), bombs(bombs), explosions(explosions), scores(scores) {}
 
@@ -35,6 +36,7 @@ public:
 
     void process_turn(Turn &turn) {
         if (turn.get_turn() != this->turn) {
+            std::cout << turn.get_turn() << ' ' << this->turn << '\n';
             throw std::runtime_error("Turn out of order.");
         }
 
@@ -53,6 +55,9 @@ public:
 
     void next_turn() {
         turn++;
+        for (std::pair<const Bomb::id_t, Bomb> &key_val : bomb_map) {
+            key_val.second.decrease_timer();
+        }
     }
 
 private:
@@ -62,11 +67,12 @@ private:
     std::map<Player::id_t, Position> player_positions;
     std::list<Position> blocks;
     std::list<Bomb> bombs;
-    std::list<Position> explosions;
+    std::set<Position> explosions;
     std::map<Player::id_t, score_t> scores;
 
     std::map<Bomb::id_t, Bomb> bomb_map;
     std::set<Position> block_positions;
+    std::set<Position> blocks_destroyed;
 
     void add_bomb(const BombPlaced &bomb_placed) {
         bomb_map[bomb_placed.get_id()] = Bomb(bomb_placed.get_position(), game_settings.get_bomb_timer());
@@ -77,12 +83,13 @@ private:
             &&  (position.get_y() < game_settings.get_size_y()));
     }
 
-    void mark_explosions_in_direction(Position position, const Direction &direction) {
+    void mark_explosions_in_direction(Position position, const Direction &direction, Bomb::explosion_rad_t left) {
         position = position.shift(direction);
-        if (position_in_map(position)) {
-            explosions.push_back(position);
+        if (position_in_map(position) && left > 0) {
+            std::cerr << position << '\n';
+            explosions.insert(position);
             if (block_positions.find(position) == block_positions.end()) {
-                mark_explosions_in_direction(position, direction);
+                mark_explosions_in_direction(position, direction, left - 1);
             }
         }
     }
@@ -91,22 +98,32 @@ private:
         auto bomb_map_it = bomb_map.find(bomb_exploded.get_id());
 
         Position explosion_position = (bomb_map_it->second).get_position();
-        explosions.push_back(explosion_position);
+        explosions.insert(explosion_position);
         if (block_positions.find(explosion_position) == block_positions.end()) {
             for (const Direction &direction : {Direction::Up, Direction::Right, Direction::Down, Direction::Left}) {
-                mark_explosions_in_direction(explosion_position, direction);
+                mark_explosions_in_direction(explosion_position, direction, game_settings.get_explosion_radius());
             }
         }
+
+        std::cerr << "HERE\n";
         
         bomb_map.erase(bomb_map_it);
         for (const Player::id_t &player_id : bomb_exploded.get_robots_destroyed()) {
-            player_positions.erase(player_positions.find(player_id));
-            scores[player_id] += 1;
+            std::cerr << player_id << '\n';
+            auto player_positions_it = player_positions.find(player_id);
+            if (player_positions_it != player_positions.end()) {
+                player_positions.erase(player_positions_it);
+                scores[player_id] += 1;
+            }
         }
 
+        std::cerr << "HERE1\n";
+
         for (const Position &position : bomb_exploded.get_blocks_destroyed()) {
-            block_positions.erase(block_positions.find(position));
+            blocks_destroyed.insert(position);
         }
+
+        std::cerr << "HERE2\n";
     }
 
     void move_player(const PlayerMoved &player_moved) {
@@ -119,13 +136,17 @@ private:
 
     void build_state() {
         blocks.clear();
+        for (const Position &pos : blocks_destroyed) {
+            if (block_positions.find(pos) != block_positions.end()) {
+                block_positions.erase(block_positions.find(pos));
+            }
+        }
         for (const Position &pos : block_positions) {
             blocks.push_back(pos);
         }
 
         bombs.clear();
         for (std::pair<const Bomb::id_t, Bomb> &key_val : bomb_map) {
-            key_val.second.decrease_timer();
             bombs.push_back(key_val.second);
         }
     }

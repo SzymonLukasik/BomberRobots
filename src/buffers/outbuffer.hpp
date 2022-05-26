@@ -7,6 +7,7 @@
 #include <variant>
 #include <limits>
 #include <list>
+#include <set>
 #include <map>
 
 #include <iostream>
@@ -119,6 +120,20 @@ OutBuffer &operator<<(OutBuffer &buff, const std::list<T> &list) {
 
     buff << static_cast<uint32_t>(list.size());
     for (const T &val : list) {
+        buff << val;
+    }
+
+    return buff;
+}
+
+template <typename T>
+OutBuffer &operator<<(OutBuffer &buff, const std::set<T> &set) {
+    if (set.size() > std::numeric_limits<uint32_t>::max()) {
+        throw std::runtime_error("List too long.");
+    }
+
+    buff << static_cast<uint32_t>(set.size());
+    for (const T &val : set) {
         buff << val;
     }
 
