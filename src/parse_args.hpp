@@ -8,6 +8,34 @@
 
 namespace program_options = boost::program_options;
 
+class EndPoint {
+public:
+    EndPoint() = default;
+
+    EndPoint(std::string str) {
+        size_t pos = str.find_last_of(":");
+        ip = str.substr(0, pos);
+        port = str.substr(pos + 1);
+
+        if (ip[0] == '[' && ip[ip.size() - 1] == ']') {
+            ip = ip.substr(1);
+            ip = ip.substr(0, ip.size() - 1);
+        }
+    }
+    std::string get_ip() { return ip; }
+
+    std::string get_port() { return port; }
+
+private:
+    std::string ip;
+    std::string port;
+
+    friend std::ostream &operator<<(std::ostream &stream, const EndPoint &endpoint) {
+        stream << "EndPoint: { ip: " << endpoint.ip << ", port: " << endpoint.port << " }";
+        return stream; 
+    }
+};
+
 bool parse_args(int argc, const char *argv[],
                 EndPoint &gui_endpoint, EndPoint &server_endpoint,
                 uint16_t &port, std::string &player_name) {

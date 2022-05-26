@@ -9,10 +9,6 @@
 #include "common.hpp"
 #include "client.hpp"
 
-#include "test_client_server.hpp"
-#include "test_client_gui.hpp"
-#include "test_gui_client.hpp"
-
 using boost::asio::ip::tcp;
 
 int main(int argc, const char *argv[]) {
@@ -24,9 +20,6 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    // test_server_serialization(server_endpoint);
-    // test_gui_serialization(gui_endpoint);
-    // test_gui_deserialization(port);
     Client client(player_name, server_endpoint, gui_endpoint, port);
     client.run();
 }

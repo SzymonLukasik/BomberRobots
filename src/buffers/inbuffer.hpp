@@ -14,7 +14,7 @@
 #include <iostream>
 
 #include "buffer_utils.hpp"
-#include "../variant_utils.hpp"
+#include "../common.hpp"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
@@ -80,7 +80,6 @@ private:
             udp::endpoint remote_endpoint;
             size_t n_received = socket.receive_from(boost::asio::buffer(data + size, InBuffer::CAPACITY - size), remote_endpoint);
             size += n_received;
-            std::cout << "UDP RECEIVED: " << n_received << '\n';
         }
     }
 };

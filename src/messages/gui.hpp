@@ -9,24 +9,19 @@
 #include "../game.hpp"
 #include "../buffers/outbuffer.hpp"
 #include "../messages/server.hpp"
-#include "../variant_utils.hpp"
+#include "../common.hpp"
 
 class Lobby;
 
 class Game {
 public:
-    Game(Hello game_settings, game_length_t turn, std::map<Player::id_t, Player> players,
-         std::map<Player::id_t, Position> player_positions, std::list<Position> blocks, 
-         std::list<Bomb> bombs, std::set<Position> explosions, std::map<Player::id_t, score_t> scores)
-    : game_settings(game_settings), turn(turn), players(players), player_positions(player_positions), 
-      blocks(blocks), bombs(bombs), explosions(explosions), scores(scores) {}
-
     Game(Hello &&game_settings, GameStarted &&game_started)
-    : game_settings(std::move(game_settings)), turn(0), players(std::move(game_started.players)) {
-          for (const std::pair<Player::id_t, Player> &key_val : players) {
-              scores[key_val.first] = 0;
-          }
-      }
+    : game_settings(std::move(game_settings)), turn(0), 
+      players(std::move(game_started.get_players())) {
+        for (const std::pair<Player::id_t, Player> &key_val : players) {
+            scores[key_val.first] = 0;
+        }
+    }
 
     Lobby end_game();
 
@@ -34,9 +29,8 @@ public:
         return (turn == game_settings.get_game_length());
     }
 
-    void process_turn(Turn &turn) {
+    void process_turn(Turn &&turn) {
         if (turn.get_turn() != this->turn) {
-            std::cout << turn.get_turn() << ' ' << this->turn << '\n';
             throw std::runtime_error("Turn out of order.");
         }
 
@@ -86,7 +80,6 @@ private:
     void mark_explosions_in_direction(Position position, const Direction &direction, Bomb::explosion_rad_t left) {
         position = position.shift(direction);
         if (position_in_map(position) && left > 0) {
-            std::cerr << position << '\n';
             explosions.insert(position);
             if (block_positions.find(position) == block_positions.end()) {
                 mark_explosions_in_direction(position, direction, left - 1);
@@ -105,11 +98,8 @@ private:
             }
         }
 
-        std::cerr << "HERE\n";
-        
         bomb_map.erase(bomb_map_it);
         for (const Player::id_t &player_id : bomb_exploded.get_robots_destroyed()) {
-            std::cerr << player_id << '\n';
             auto player_positions_it = player_positions.find(player_id);
             if (player_positions_it != player_positions.end()) {
                 player_positions.erase(player_positions_it);
@@ -117,13 +107,9 @@ private:
             }
         }
 
-        std::cerr << "HERE1\n";
-
         for (const Position &position : bomb_exploded.get_blocks_destroyed()) {
             blocks_destroyed.insert(position);
         }
-
-        std::cerr << "HERE2\n";
     }
 
     void move_player(const PlayerMoved &player_moved) {
@@ -141,6 +127,7 @@ private:
                 block_positions.erase(block_positions.find(pos));
             }
         }
+
         for (const Position &pos : block_positions) {
             blocks.push_back(pos);
         }
@@ -160,30 +147,26 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const Game &game) {
-        stream << " Game { game_settings " << game.game_settings << ", turn: " << game.turn
+        stream << "Game { game_settings: " << game.game_settings << ", turn: " << game.turn
                << ", players: " << game.players << ", player_positions: " << game.player_positions
                << ", blocks: " << game.blocks << ", bombs: " << game.bombs << ", explosions: " << game.explosions
-               << ", scores: " << game.scores;
+               << ", scores: " << game.scores << " }";
         return stream; 
     }
 };
 
 class Lobby {
 public:
-    Lobby(Hello &game_settings) : game_settings(std::move(game_settings)) {};
-    Lobby(Hello &&game_settings) : game_settings(std::move(game_settings)) {};
     Lobby() = default;
+
+    Lobby(Hello &&game_settings) : game_settings(std::move(game_settings)) {};
 
     Game start_game(GameStarted &&game_started) {
         return Game(std::move(game_settings), std::move(game_started));
     }
 
-    void add_player(AcceptedPlayer &accepted_player) {
-        players[accepted_player.id] = accepted_player.player;
-    }
-
-    void add_player(AcceptedPlayer &&accepted_player) {
-        players[accepted_player.id] = accepted_player.player;
+    void add_player(const AcceptedPlayer &&accepted_player) {
+        players[accepted_player.get_id()] = accepted_player.get_player();
     }
 
 private:
@@ -196,7 +179,8 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const Lobby &lobby) {
-        stream << " Lobby { game_settings " << lobby.game_settings << ", players: " << lobby.players;
+        stream << "Lobby { game_settings: " << lobby.game_settings 
+               << ", players: " << lobby.players << " }";
         return stream; 
     }
 };

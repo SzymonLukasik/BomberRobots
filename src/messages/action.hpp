@@ -5,9 +5,11 @@
 #include "../buffers/outbuffer.hpp"
 #include "../buffers/inbuffer.hpp"
 #include <iostream>
+
 class PlaceBomb {
 public:
-    PlaceBomb() {}
+    PlaceBomb() = default;
+
     friend OutBuffer &operator<<(OutBuffer &buff, [[maybe_unused]] const PlaceBomb &place_bomb) {
         return buff;
     }
@@ -24,7 +26,8 @@ public:
 
 class PlaceBlock {
 public:
-    PlaceBlock() {}
+    PlaceBlock() = default;
+
     friend OutBuffer &operator<<(OutBuffer &buff, [[maybe_unused]] const PlaceBlock &place_block) {
         return buff;
     }
@@ -72,8 +75,10 @@ std::ostream &operator<<(std::ostream &stream, const Direction &direction) {
 
 class Move {
 public:
+    Move() = default;
+
     Move(Direction direction) : direction(direction) {}
-    Move() : Move(Direction::Up) {}
+
 private:
     Direction direction;
 

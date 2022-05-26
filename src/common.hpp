@@ -3,33 +3,53 @@
 
 #include <string>
 #include <iostream>
+#include <variant>
+#include <type_traits>
+#include <iostream>
 
-class EndPoint {
-public:
-    EndPoint() : ip(), port() {}
+// helper type for the visitor
+template<class... Ts> struct visitors : Ts... { using Ts::operator()...; };
 
-    EndPoint(std::string str) {
-        size_t pos = str.find_last_of(":");
-        ip = str.substr(0, pos);
-        port = str.substr(pos + 1);
+// explicit deduction guide (not needed as of C++20)
+template<class... Ts> visitors(Ts...) -> visitors<Ts...>;
+
+
+template <typename U, typename V>
+std::ostream &operator<<(std::ostream &stream, const std::pair<U, V> &pair) {
+    stream << pair.first << ": " << pair.second;
+    return stream;
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, const std::list<T> &list) {
+    stream << " [ ";
+    for (const T &val : list) {
+        stream << val << ", ";
     }
+    stream << " ] ";
+    return stream;
+}
 
-    friend std::ostream &operator<<(std::ostream &stream, const EndPoint &endpoint) {
-        stream << "ip: " << endpoint.ip << ", port: " << endpoint.port;
-        return stream; 
+
+template <typename T>
+std::ostream &operator<<(std::ostream &stream, const std::set<T> &set) {
+    stream << " [ ";
+    for (const T &val : set) {
+        stream << val << ", ";
     }
+    stream << " ] ";
+    return stream;
+}
 
-    std::string get_ip() {
-        return ip;
+
+template <typename U, typename V>
+std::ostream &operator<<(std::ostream &stream, const std::map<U, V> &map) {
+    stream << " { (map_size = " << map.size() << ") ";
+    for (const std::pair<U, V> &key_val : map) {
+        stream << key_val << ", ";
     }
-
-    std::string get_port() {
-        return port;
-    }
-
-private:
-    std::string ip;
-    std::string port;
-};
+    stream << " } ";
+    return stream;
+}
 
 #endif // __COMMON_H__

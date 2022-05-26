@@ -5,21 +5,25 @@
 #include <list>
 #include <variant>
 
-
 #include "buffers/outbuffer.hpp"
 #include "buffers/inbuffer.hpp"
-#include "../tests/utils.hpp"
+#include "common.hpp"
+
+using score_t = uint32_t;
+
+using game_length_t = uint16_t;
+
+using players_count_t = uint8_t;
 
 class Player {
 public:
     using id_t = uint8_t;
-    Player() = default;
-    Player(std::string name, std::string address)
-    : name(name), address(address) {}
 
-    std::string get_name() {
-        return name;
-    }
+    Player() = default;
+    
+    Player(std::string name, std::string address) : name(name), address(address) {}
+
+    const std::string &get_name() const { return name; }
 
 private:
     std::string name;
@@ -36,25 +40,26 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const Player &player) {
-        stream << " Player { name: " << player.name << ", address: " << player.address << " } ";
+        stream << "Player { name: " << player.name << ", address: " << player.address << " }";
         return stream;
     }
-    
 };
 
 class Position {
 public:
-    Position() = default;
     using coord_t = uint16_t;
+
+    Position() = default;
+
     Position(coord_t x, coord_t y) : x(x), y(y) {}
 
     coord_t get_x() const { return x; }
+
     coord_t get_y() const { return y; }
 
     bool operator<(const Position &rhs) const {
-        if (x < rhs.x || (x == rhs.x && y < rhs.y)) {
+        if (x < rhs.x || (x == rhs.x && y < rhs.y))
             return true;
-        }
         return false;
     }
 
@@ -86,7 +91,7 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const Position &position) {
-        stream << " Position { x: " << position.x << ", y: " << position.y << " } ";
+        stream << "Position { x: " << position.x << ", y: " << position.y << " }";
         return stream;
     }
 };
@@ -96,13 +101,14 @@ public:
     using id_t = uint32_t;
     using timer_t = uint16_t;
     using explosion_rad_t = uint16_t;
+
     Bomb() = default;
+
     Bomb(Position position, timer_t timer) : position(position), timer(timer) {}
 
     void decrease_timer() {
-        if (timer == 0) {
+        if (timer == 0)
             throw std::runtime_error("Decreasing zero timer.");
-        }
         timer--;
     }
 
@@ -125,29 +131,20 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const Bomb &bomb) {
-        stream << " Bomb { position: " << bomb.position << ", timer: " << bomb.timer << " } "; 
+        stream << "Bomb { position: " << bomb.position << ", timer: " << bomb.timer << " }"; 
         return stream;
     }
 };
 
-using score_t = uint32_t;
-
-using game_length_t = uint16_t;
-
-using players_count_t = uint8_t;
-
 class BombPlaced {
 public:
     BombPlaced() = default;
+
     BombPlaced(Bomb::id_t id, Position position) : id(id), position(position) {}
 
-    Bomb::id_t get_id() const {
-        return id;
-    }
+    Bomb::id_t get_id() const { return id; }
 
-    Position get_position() const {
-        return position;
-    }
+    Position get_position() const { return position; }
 
 private:
     Bomb::id_t id;
@@ -164,7 +161,7 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const BombPlaced &bomb_placed) {
-        stream << " BombPlaced { id: " << bomb_placed.id << ", position: " << bomb_placed.position << " } ";
+        stream << "BombPlaced { id: " << bomb_placed.id << ", position: " << bomb_placed.position << " }";
         return stream;
     }
 };
@@ -172,21 +169,16 @@ private:
 class BombExploded {
 public:
     BombExploded() = default;
+
     BombExploded(Bomb::id_t id, std::list<Player::id_t> robots_destroyed,
                  std::list<Position> blocks_destroyed)
     : id(id), robots_destroyed(robots_destroyed), blocks_destroyed(blocks_destroyed) {}
 
-    Bomb::id_t get_id() const {
-        return id;
-    }
+    Bomb::id_t get_id() const { return id; }
 
-    const std::list<Player::id_t> &get_robots_destroyed() const {
-        return robots_destroyed;
-    }
+    const std::list<Player::id_t> &get_robots_destroyed() const { return robots_destroyed; }
 
-    const std::list<Position> &get_blocks_destroyed() const {
-        return blocks_destroyed;
-    }
+    const std::list<Position> &get_blocks_destroyed() const { return blocks_destroyed; }
 
 private:
     Bomb::id_t id;
@@ -204,7 +196,9 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const BombExploded &bomb_exploded) {
-        stream << " BombExploded { id: " << bomb_exploded.id << ", robots_destroyed: " << bomb_exploded.robots_destroyed << ", blocks_destroyed: " << bomb_exploded.blocks_destroyed << " } ";
+        stream << "BombExploded { id: " << bomb_exploded.id << ", robots_destroyed: " 
+               << bomb_exploded.robots_destroyed << ", blocks_destroyed: " 
+               << bomb_exploded.blocks_destroyed << " }";
         return stream;
     }
 };
@@ -212,15 +206,12 @@ private:
 class PlayerMoved {
 public:
     PlayerMoved() = default;
+
     PlayerMoved(Player::id_t id, Position position) : id(id), position(position) {}
 
-    Player::id_t get_id() const {
-        return id;
-    }
+    Player::id_t get_id() const { return id; }
 
-    Position get_position() const {
-        return position;
-    }
+    Position get_position() const { return position; }
 
 private:
     Player::id_t id;
@@ -245,11 +236,10 @@ private:
 class BlockPlaced {
 public:
     BlockPlaced() = default;
+
     BlockPlaced(Position position) : position(position) {}
 
-    Position get_position() const {
-        return position;
-    }
+    Position get_position() const { return position; }
 
 private:
     Position position;
@@ -265,7 +255,7 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, const BlockPlaced &player_placed) {
-        stream << " BlockPlaced { position: " << player_placed.position << " } ";
+        stream << "BlockPlaced { position: " << player_placed.position << " }";
         return stream;
     }
 };

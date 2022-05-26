@@ -7,15 +7,13 @@
 #include <atomic>
 #include <shared_mutex>
 
-#include "utils.hpp"
+#include "common.hpp"
 #include "messages/gui.hpp"
 #include "messages/server.hpp"
 #include "buffers/buffer.hpp"
-#include "tests/utils.hpp"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
-
 
 template <class T, class... Ts>
 std::ostream &operator<<(std::ostream &stream, const std::variant<T, Ts...> &variant) {
@@ -93,42 +91,31 @@ private:
     }
 
     void listen_to_server() {
-        ServerMessage message;
         for (;;) {
-            try {
-                tcp_buffer >> message;
-            } catch (...) {
-                exit(1);
-            }
+            ServerMessage message;
+            try { tcp_buffer >> message; } 
+            catch (...) { exit(1); }
             if (is_in_lobby()) {
                 if (std::holds_alternative<AcceptedPlayer>(message)) {
-                    std::cout << "ACCEPTED_PLAYER\n";
                     std::unique_lock lock(game_state_mutex);
-                    AcceptedPlayer accepted_player = std::get<AcceptedPlayer>(message);
-                    std::get<Lobby>(game_state).add_player(accepted_player);
-                    send_state_to_gui();
-                    if (accepted_player.get_player().get_name() == player_name) {
+                    if (std::get<AcceptedPlayer>(message).get_player().get_name() == player_name)
                         observer = false;
-                    }
+                    std::get<Lobby>(game_state).add_player(std::move(std::get<AcceptedPlayer>(message)));
+                    send_state_to_gui();
                 } else if (std::holds_alternative<GameStarted>(message)) {
-                    std::cout << "GAME_STARTED\n";
                     std::unique_lock lock(game_state_mutex);
-                    game_state = std::get<Lobby>(game_state).start_game(
-                        std::move(std::get<GameStarted>(message)));
+                    game_state = std::get<Lobby>(game_state).start_game(std::move(std::get<GameStarted>(message)));
                 } else {
                     throw std::runtime_error("Unexpected server message in lobby.");
                 }
             } else {
                 if (std::holds_alternative<Turn>(message)) {
-                    std::cout << "TURN\n";
                     std::unique_lock lock(game_state_mutex);
                     Game &game = std::get<Game>(game_state);
-                    game.process_turn(std::get<Turn>(message));
-                    std::cout << game << '\n';
+                    game.process_turn(std::move(std::get<Turn>(message)));
                     send_state_to_gui();
                     game.next_turn();
                 } else if (std::holds_alternative<GameEnded>(message)) {
-                    std::cout << "GAME_ENDED\n";
                     std::unique_lock lock(game_state_mutex);
                     game_state = std::get<Game>(game_state).end_game();
                     send_state_to_gui();
@@ -145,7 +132,6 @@ private:
         for (;;) {
             try {
                 udp_buffer >> input_message;
-                std::cout << input_message << '\n';
                 if (is_in_lobby()) {
                     tcp_buffer << ClientMessage(Join(player_name));
                     tcp_buffer.send();
@@ -154,9 +140,7 @@ private:
                     tcp_buffer << client_message;
                     tcp_buffer.send();
                 }
-            } catch (...) {
-                std::cout << "RECEIVED INVALID\n";
-            }
+            } catch (...) {}
         }
     }
 

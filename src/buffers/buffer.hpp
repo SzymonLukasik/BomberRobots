@@ -16,16 +16,13 @@ class Buffer {
 public:
     Buffer(socket_t &&socket) : socket(std::move(socket)), in_buffer(this->socket), out_buffer(this->socket) {}
 
-    socket_t &get_socket() {
-        return socket;
-    }
-
     void send() {
         out_buffer.send();
     }
 
-    void get_endpoint(udp::endpoint udp_endpoint) {
-        out_buffer.get_endpoint(udp_endpoint);
+    socket_t &get_socket() { return socket; }
+
+    void get_endpoint(udp::endpoint udp_endpoint) { out_buffer.get_endpoint(udp_endpoint);
     }
 
 private:

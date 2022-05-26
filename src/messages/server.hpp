@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "../buffers/outbuffer.hpp"
-#include "../tests/utils.hpp"
+#include "../common.hpp"
 #include "gui.hpp"
 #include "../game.hpp"
 #include "action.hpp"
@@ -15,7 +15,9 @@
 class Join {
 public:
     Join() = default;
+
     Join(std::string name) : name(name) {}
+
 private:
     std::string name;
 
@@ -34,7 +36,8 @@ using ClientMessage = std::variant<
 
 class Hello {
 public:
-    Hello() {}
+    Hello() = default;
+
     Hello(std::string server_name, players_count_t players_count, 
           Position::coord_t size_x, Position::coord_t size_y, game_length_t game_length,
           Bomb::explosion_rad_t explosion_radius, Bomb::timer_t bomb_timer)
@@ -43,11 +46,17 @@ public:
       bomb_timer(bomb_timer) {}
 
     const std::string &get_server_name() const { return server_name; }
+
     players_count_t get_players_count() const { return players_count; }
+
     Position::coord_t get_size_x() const { return size_x; }
+
     Position::coord_t get_size_y() const { return size_y; }
+
     game_length_t get_game_length() const { return game_length; }
+
     Bomb::explosion_rad_t get_explosion_radius() const { return explosion_radius; }
+
     Bomb::timer_t get_bomb_timer() const { return bomb_timer; }
 
 private:
@@ -73,24 +82,26 @@ private:
     }
 
     friend std::ostream &operator<<(std::ostream &stream, [[maybe_unused]] const Hello &hello) {
-        stream << " Hello { server_name: " << hello.server_name << ", players_count: " << hello.players_count
-               << ", size_x: " << hello.size_x << ", size_y: " << hello.size_y << ", game_length: " << hello.game_length
-               << ", explosion_radius: " << hello.explosion_radius << ", bomb_timer: " << hello.bomb_timer << " } ";
+        stream << "Hello { server_name: " << hello.server_name 
+               << ", players_count: " << hello.players_count
+               << ", size_x: " << hello.size_x 
+               << ", size_y: " << hello.size_y 
+               << ", game_length: " << hello.game_length
+               << ", explosion_radius: " << hello.explosion_radius 
+               << ", bomb_timer: " << hello.bomb_timer << " }";
         return stream;
     }
-
-    friend class Lobby;
 };
 
 class AcceptedPlayer {
 public:
-    AcceptedPlayer() {}
-    AcceptedPlayer(Player::id_t id, Player player)
-    : id(id), player(player) {}
+    AcceptedPlayer() = default;
 
-    Player get_player() {
-        return player;
-    }
+    AcceptedPlayer(Player::id_t id, Player player) : id(id), player(player) {}
+
+    Player::id_t get_id() const { return id; }
+
+    const Player &get_player() const { return player; }
 
 private:
     Player::id_t id;
@@ -101,18 +112,26 @@ private:
         return buff;
     }
 
-    friend std::ostream &operator<<(std::ostream &stream, const AcceptedPlayer &accepted_player) {
-        stream << " AcceptedPlayer { id: " << accepted_player.id << ", " << "player: " << accepted_player.player << " }";
-        return stream;
+    friend OutBuffer &operator<<(OutBuffer &buff, const AcceptedPlayer &accepted_player) {
+        buff << accepted_player.id << accepted_player.player;
+        return buff;
     }
 
-    friend class Lobby;
+    friend std::ostream &operator<<(std::ostream &stream, const AcceptedPlayer &accepted_player) {
+        stream << "AcceptedPlayer { id: " << accepted_player.id 
+               << ", player: " << accepted_player.player << " }";
+        return stream;
+    }
 };
 
 class GameStarted {
 public:
-    GameStarted() {}
+    GameStarted() = default;
+
     GameStarted(std::map<Player::id_t, Player> players) : players(players) {}
+
+    std::map<Player::id_t, Player> &get_players() { return players; }
+
 private:
     std::map<Player::id_t, Player> players;
 
@@ -120,27 +139,27 @@ private:
         buff >> game_started.players;
         return buff;
     }
+
+    friend OutBuffer &operator>>(OutBuffer &buff, const GameStarted &game_started) {
+        buff << game_started.players;
+        return buff;
+    }
     
     friend std::ostream &operator<<(std::ostream &stream, const GameStarted &game_started) {
-        stream << " GameStarted { players: " << game_started.players << " }";
+        stream << "GameStarted { players: " << game_started.players << " }";
         return stream;
     }
-
-    friend class Game;
 };
 
 class Turn {
 public:
-    Turn() {}
+    Turn() = default;
+
     Turn(game_length_t turn, std::list<Event> events) : turn(turn), events(events) {}
 
-    game_length_t get_turn() {
-        return turn;
-    }
+    game_length_t get_turn() { return turn; }
 
-    const std::list<Event> &get_events() {
-        return events;
-    }
+    const std::list<Event> &get_events() { return events; }
 
 private:
     game_length_t turn;
@@ -151,16 +170,23 @@ private:
         return buff;
     }
 
+    friend OutBuffer &operator>>(OutBuffer &buff, const Turn &turn) {
+        buff << turn.turn << turn.events;
+        return buff;
+    }
+
     friend std::ostream &operator<<(std::ostream &stream, const Turn &turn) {
-        stream << " Turn { turn: " << turn.turn << ", " << "events: " << turn.events << " }";
+        stream << "Turn { turn: " << turn.turn << ", events: " << turn.events << " }";
         return stream;
     }
 };
 
 class GameEnded {
 public:
-    GameEnded() {}
+    GameEnded() = default;
+
     GameEnded(std::map<Player::id_t, score_t> scores) : scores(scores) {}
+
 private:
     std::map<Player::id_t, score_t> scores;
 
@@ -169,8 +195,13 @@ private:
         return buff;
     }
 
+    friend OutBuffer &operator>>(OutBuffer &buff, const GameEnded &game_ended) {
+        buff << game_ended.scores;
+        return buff;
+    }
+
     friend std::ostream &operator<<(std::ostream &stream, const GameEnded &game_ended) {
-        stream << " GameEnded { scores: " << game_ended.scores << " }";
+        stream << "GameEnded { scores: " << game_ended.scores << " }";
         return stream;
     }
 };
